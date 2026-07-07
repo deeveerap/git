@@ -1,0 +1,55 @@
+Before runnig this scritp python-gitlab module needs to be installed.
+
+
+import gitlab
+import subprocess
+from pathlib import Path
+
+GITLAB_URL = "URL_HERE"
+TOKEN = "YOUR_PAT"
+GROUP_PATH = "SUB_PATH"
+
+LOCAL_ROOT = r"C:\gitlab_checkout"
+
+gl = gitlab.Gitlab(
+    GITLAB_URL,
+    private_token=TOKEN
+)
+
+# Get the group
+group = gl.groups.get(GROUP_PATH)
+
+# Get all projects in group and subgroups
+projects = group.projects.list(include_subgroups=True, all=True)
+
+print(f"Found {len(projects)} projects")
+
+for p in projects:
+
+    project = gl.projects.get(p.id)
+
+    namespace = project.path_with_namespace
+    repo_url = project.http_url_to_repo
+
+    target_dir = Path(LOCAL_ROOT) / namespace
+
+    print(f"Processing {namespace}")
+
+    target_dir.parent.mkdir(parents=True, exist_ok=True)
+
+    if target_dir.exists():
+        print("Already exists")
+        continue
+
+    clone_url = repo_url.replace(
+        "https://",
+        f"https://oauth2:{TOKEN}@"
+    )
+
+    subprocess.run([
+        "git", "clone",
+        clone_url,
+        str(target_dir)
+    ])
+
+print("Done")
